@@ -1,5 +1,7 @@
 package com.ferfalk.simplesearchview;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -16,15 +18,22 @@ import android.os.Build;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.speech.RecognizerIntent;
-import android.support.annotation.ColorInt;
-import android.support.annotation.DrawableRes;
-import android.support.annotation.IntDef;
-import android.support.annotation.NonNull;
-import android.support.design.widget.TabLayout;
-import android.support.v4.widget.ImageViewCompat;
+
+import androidx.annotation.ColorInt;
+import androidx.annotation.DrawableRes;
+import androidx.annotation.IntDef;
+import androidx.annotation.NonNull;
+import androidx.core.graphics.drawable.DrawableCompat;
+
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.tabs.TabLayout;
+
 import android.text.TextUtils;
 import android.util.AttributeSet;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
@@ -32,7 +41,6 @@ import android.view.ViewTreeObserver;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.ImageButton;
 
 import com.ferfalk.simplesearchview.utils.ContextUtils;
 import com.ferfalk.simplesearchview.utils.DimensUtils;
@@ -61,10 +69,15 @@ public class SimpleSearchView extends FrameLayout {
 
     public static final int STYLE_BAR = 0;
     public static final int STYLE_CARD = 1;
+    public static final int MATERIAL_SURFACE = 2;
+    public static final int MATERIAL_PRIMARY = 3;
 
-    @IntDef({STYLE_BAR, STYLE_CARD})
+    private MaterialToolbar toolbar;
+    private int toolbarId;
+
+    @IntDef({STYLE_BAR, STYLE_CARD, MATERIAL_SURFACE, MATERIAL_PRIMARY})
     @Retention(RetentionPolicy.SOURCE)
-    public @interface Style {
+    @interface Style {
     }
 
     private Context context;
@@ -81,10 +94,9 @@ public class SimpleSearchView extends FrameLayout {
 
     private ViewGroup searchContainer;
     private EditText searchEditText;
-    private ImageButton backButton;
-    private ImageButton clearButton;
-    private ImageButton voiceButton;
-    private View bottomLine;
+    private MaterialButton backButton;
+    private MaterialButton clearButton;
+    private MaterialButton voiceButton;
 
     private TabLayout tabLayout;
     private int tabLayoutInitialHeight;
@@ -94,6 +106,9 @@ public class SimpleSearchView extends FrameLayout {
 
     private boolean searchIsClosing = false;
     private boolean keepQuery = false;
+
+    private int defTextColor;
+    private int defBackgroundColor;
 
     public SimpleSearchView(Context context) {
         this(context, null);
@@ -111,10 +126,11 @@ public class SimpleSearchView extends FrameLayout {
         initStyle(attrs, defStyleAttr);
         initSearchEditText();
         initClickListeners();
+        updateSearchViewStyle();
         showVoice(true);
 
         if (!isInEditMode()) {
-            setVisibility(View.INVISIBLE);
+            setVisibility(View.GONE);
         }
     }
 
@@ -126,81 +142,100 @@ public class SimpleSearchView extends FrameLayout {
         backButton = findViewById(R.id.buttonBack);
         clearButton = findViewById(R.id.buttonClear);
         voiceButton = findViewById(R.id.buttonVoice);
-        bottomLine = findViewById(R.id.bottomLine);
     }
 
     private void initStyle(AttributeSet attrs, int defStyleAttr) {
         TypedArray typedArray = context.obtainStyledAttributes(attrs, R.styleable.SimpleSearchView, defStyleAttr, 0);
-        if (typedArray == null) {
-            setCardStyle(style);
-            return;
-        }
+        if (typedArray != null) {
+            setSearchStyle(typedArray.getInt(R.styleable.SimpleSearchView_type, style));
 
-        if (typedArray.hasValue(R.styleable.SimpleSearchView_type)) {
-            setCardStyle(typedArray.getInt(R.styleable.SimpleSearchView_type, style));
-        }
+            if (typedArray.hasValue(R.styleable.SimpleSearchView_parentToolbar)) {
+                toolbarId = typedArray.getResourceId(R.styleable.SimpleSearchView_parentToolbar, style);
+            } else {
+                throw new IllegalStateException("You must set parentToolbar!");
+            }
 
-        if (typedArray.hasValue(R.styleable.SimpleSearchView_backIconAlpha)) {
-            setBackIconAlpha(typedArray.getFloat(R.styleable.SimpleSearchView_backIconAlpha, BACK_ICON_ALPHA_DEFAULT));
-        }
+            if (typedArray.hasValue(R.styleable.SimpleSearchView_iconsAlpha)) {
+                setIconsAlpha(typedArray.getFloat(R.styleable.SimpleSearchView_iconsAlpha, ICONS_ALPHA_DEFAULT));
+            }
 
-        if (typedArray.hasValue(R.styleable.SimpleSearchView_iconsAlpha)) {
-            setIconsAlpha(typedArray.getFloat(R.styleable.SimpleSearchView_iconsAlpha, ICONS_ALPHA_DEFAULT));
-        }
+            if (typedArray.hasValue(R.styleable.SimpleSearchView_iconsTint)) {
+                setIconsColor(typedArray.getColor(R.styleable.SimpleSearchView_iconsTint, defTextColor));
+            }
 
-        if (typedArray.hasValue(R.styleable.SimpleSearchView_backIconTint)) {
-            setBackIconColor(typedArray.getColor(R.styleable.SimpleSearchView_backIconTint, ContextUtils.getPrimaryColor(context)));
-        }
+            if (typedArray.hasValue(R.styleable.SimpleSearchView_cursorColor)) {
+                setCursorColor(typedArray.getColor(R.styleable.SimpleSearchView_cursorColor, defTextColor));
+            }
 
-        if (typedArray.hasValue(R.styleable.SimpleSearchView_iconsTint)) {
-            setIconsColor(typedArray.getColor(R.styleable.SimpleSearchView_iconsTint, Color.BLACK));
-        }
+            if (typedArray.hasValue(R.styleable.SimpleSearchView_hintColor)) {
+                setHintTextColor(typedArray.getColor(R.styleable.SimpleSearchView_hintColor, defTextColor));
+            }
 
-        if (typedArray.hasValue(R.styleable.SimpleSearchView_cursorColor)) {
-            setCursorColor(typedArray.getColor(R.styleable.SimpleSearchView_cursorColor, ContextUtils.getAccentColor(context)));
-        }
+            if (typedArray.hasValue(R.styleable.SimpleSearchView_searchBackground)) {
+                setSearchBackground(typedArray.getDrawable(R.styleable.SimpleSearchView_searchBackground));
+            }
 
-        if (typedArray.hasValue(R.styleable.SimpleSearchView_hintColor)) {
-            setHintTextColor(typedArray.getColor(R.styleable.SimpleSearchView_hintColor, getResources().getColor(R.color.default_textColorHint)));
-        }
+            if (typedArray.hasValue(R.styleable.SimpleSearchView_searchBackIcon)) {
+                setBackIconDrawable(typedArray.getDrawable(R.styleable.SimpleSearchView_searchBackIcon));
+            }
 
-        if (typedArray.hasValue(R.styleable.SimpleSearchView_searchBackground)) {
-            setSearchBackground(typedArray.getDrawable(R.styleable.SimpleSearchView_searchBackground));
-        }
+            if (typedArray.hasValue(R.styleable.SimpleSearchView_searchClearIcon)) {
+                setClearIconDrawable(typedArray.getDrawable(R.styleable.SimpleSearchView_searchClearIcon));
+            }
 
-        if (typedArray.hasValue(R.styleable.SimpleSearchView_searchBackIcon)) {
-            setBackIconDrawable(typedArray.getDrawable(R.styleable.SimpleSearchView_searchBackIcon));
-        }
+            if (typedArray.hasValue(R.styleable.SimpleSearchView_searchVoiceIcon)) {
+                setVoiceIconDrawable(typedArray.getDrawable(R.styleable.SimpleSearchView_searchVoiceIcon));
+            }
 
-        if (typedArray.hasValue(R.styleable.SimpleSearchView_searchClearIcon)) {
-            setClearIconDrawable(typedArray.getDrawable(R.styleable.SimpleSearchView_searchClearIcon));
-        }
+            if (typedArray.hasValue(R.styleable.SimpleSearchView_voiceSearch)) {
+                enableVoiceSearch(typedArray.getBoolean(R.styleable.SimpleSearchView_voiceSearch, allowVoiceSearch));
+            }
 
-        if (typedArray.hasValue(R.styleable.SimpleSearchView_searchVoiceIcon)) {
-            setVoiceIconDrawable(typedArray.getDrawable(R.styleable.SimpleSearchView_searchVoiceIcon));
-        }
+            if (typedArray.hasValue(R.styleable.SimpleSearchView_voiceSearchPrompt)) {
+                setVoiceSearchPrompt(typedArray.getString(R.styleable.SimpleSearchView_voiceSearchPrompt));
+            }
 
-        if (typedArray.hasValue(R.styleable.SimpleSearchView_voiceSearch)) {
-            enableVoiceSearch(typedArray.getBoolean(R.styleable.SimpleSearchView_voiceSearch, allowVoiceSearch));
-        }
+            if (typedArray.hasValue(R.styleable.SimpleSearchView_android_hint)) {
+                setHint(typedArray.getString(R.styleable.SimpleSearchView_android_hint));
+            }
 
-        if (typedArray.hasValue(R.styleable.SimpleSearchView_voiceSearchPrompt)) {
-            setVoiceSearchPrompt(typedArray.getString(R.styleable.SimpleSearchView_voiceSearchPrompt));
-        }
+            if (typedArray.hasValue(R.styleable.SimpleSearchView_android_inputType)) {
+                setInputType(typedArray.getInt(R.styleable.SimpleSearchView_android_inputType, EditorInfo.TYPE_TEXT_FLAG_NO_SUGGESTIONS));
+            }
 
-        if (typedArray.hasValue(R.styleable.SimpleSearchView_android_hint)) {
-            setHint(typedArray.getString(R.styleable.SimpleSearchView_android_hint));
+            if (typedArray.hasValue(R.styleable.SimpleSearchView_android_textColor)) {
+                setTextColor(typedArray.getColor(R.styleable.SimpleSearchView_android_textColor, defTextColor));
+            }
+            typedArray.recycle();
+        } else {
+            setSearchStyle(MATERIAL_SURFACE);
         }
+    }
 
-        if (typedArray.hasValue(R.styleable.SimpleSearchView_android_inputType)) {
-            setInputType(typedArray.getInt(R.styleable.SimpleSearchView_android_inputType, EditorInfo.TYPE_TEXT_FLAG_NO_SUGGESTIONS));
-        }
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        toolbar = ((View) getParent()).findViewById(toolbarId);
 
-        if (typedArray.hasValue(R.styleable.SimpleSearchView_android_textColor)) {
-            setTextColor(typedArray.getColor(R.styleable.SimpleSearchView_android_textColor, getResources().getColor(R.color.default_textColor)));
-        }
+        toolbar.setBackgroundColor(defBackgroundColor);
+        toolbar.setSubtitleTextColor(defTextColor);
+        toolbar.setTitleTextColor(defTextColor);
 
-        typedArray.recycle();
+        updateToolbarStyle();
+    }
+
+    private void updateSearchViewStyle() {
+        setIconsColor(defTextColor);
+        setTextColor(defTextColor);
+        setHintTextColor(defTextColor);
+        setTextColor(defTextColor);
+        setBackgroundColor(defBackgroundColor);
+    }
+
+    public static int getThemeColor(final Context context, int id) {
+        final TypedValue value = new TypedValue();
+        context.getTheme().resolveAttribute(id, value, true);
+        return value.data;
     }
 
     private void initSearchEditText() {
@@ -399,6 +434,35 @@ public class SimpleSearchView extends FrameLayout {
         }
     }
 
+    @Override
+    public void setVisibility(int visibility) {
+        super.setVisibility(visibility);
+        if (toolbar != null) {
+            int duration = SimpleAnimationUtils.ANIMATION_DURATION_DEFAULT / 2;
+            if (visibility == View.VISIBLE) {
+                toolbar.animate().alpha(0f)
+                        .setDuration(duration)
+                        .setListener(new AnimatorListenerAdapter() {
+                            @Override
+                            public void onAnimationEnd(Animator animation) {
+                                super.onAnimationEnd(animation);
+                                toolbar.setVisibility(View.GONE);
+                            }
+                        }).start();
+            } else {
+                toolbar.animate().alpha(1f)
+                        .setDuration(duration)
+                        .setListener(new AnimatorListenerAdapter() {
+                            @Override
+                            public void onAnimationStart(Animator animation) {
+                                super.onAnimationStart(animation);
+                                toolbar.setVisibility(View.VISIBLE);
+                            }
+                        }).start();
+            }
+        }
+    }
+
     /**
      * Closes search with animation
      */
@@ -572,38 +636,39 @@ public class SimpleSearchView extends FrameLayout {
         return false;
     }
 
-    @Style
-    public int getCardStyle() {
-        return style;
-    }
-
     /**
      * Will reset the search background as the default for the selected style
      *
      * @param style STYLE_CARD or STYLE_BAR
      */
-    public void setCardStyle(@Style int style) {
+    public void setSearchStyle(@Style int style) {
         this.style = style;
-
-        LayoutParams layoutParams = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
-        float elevation = 0;
 
         switch (style) {
             case STYLE_CARD:
-                searchContainer.setBackground(getCardStyleBackground());
-                bottomLine.setVisibility(View.GONE);
-
-                int cardPadding = DimensUtils.convertDpToPx(CARD_PADDING, context);
-                layoutParams.setMargins(cardPadding, cardPadding, cardPadding, cardPadding);
-
-                elevation = DimensUtils.convertDpToPx(CARD_ELEVATION, context);
+                applyCardLikeStyle();
+                defTextColor = getThemeColor(getContext(), R.attr.colorOnSurface);
+                defBackgroundColor = getThemeColor(getContext(), R.attr.colorSurface);
                 break;
-            case STYLE_BAR:
             default:
-                searchContainer.setBackgroundColor(Color.WHITE);
-                bottomLine.setVisibility(View.VISIBLE);
+            case STYLE_BAR:
+            case MATERIAL_PRIMARY:
+                defTextColor = getThemeColor(getContext(), R.attr.colorOnPrimary);
+                defBackgroundColor = getThemeColor(getContext(), R.attr.colorPrimary);
+                break;
+            case MATERIAL_SURFACE:
+                defTextColor = getThemeColor(getContext(), R.attr.colorOnSurface);
+                defBackgroundColor = getThemeColor(getContext(), R.attr.colorSurface);
                 break;
         }
+    }
+
+    private void applyCardLikeStyle() {
+        LayoutParams layoutParams = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
+        setSearchBackground(getCardStyleBackground());
+        int cardPadding = DimensUtils.convertDpToPx(CARD_PADDING, context);
+        float elevation = DimensUtils.convertDpToPx(CARD_ELEVATION, context);
+        layoutParams.setMargins(cardPadding, cardPadding, cardPadding, cardPadding);
 
         searchContainer.setLayoutParams(layoutParams);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -622,6 +687,7 @@ public class SimpleSearchView extends FrameLayout {
      * Sets icons alpha, does not set the back/up icon
      */
     public void setIconsAlpha(float alpha) {
+        backButton.setAlpha(alpha);
         clearButton.setAlpha(alpha);
         voiceButton.setAlpha(alpha);
     }
@@ -630,43 +696,30 @@ public class SimpleSearchView extends FrameLayout {
      * Sets icons colors, does not set back/up icon
      */
     public void setIconsColor(@ColorInt int color) {
-        ImageViewCompat.setImageTintList(clearButton, ColorStateList.valueOf(color));
-        ImageViewCompat.setImageTintList(voiceButton, ColorStateList.valueOf(color));
-    }
-
-    /**
-     * Sets the back/up icon alpha; does not set other icons
-     */
-    public void setBackIconAlpha(float alpha) {
-        backButton.setAlpha(alpha);
-    }
-
-    /**
-     * Sets the back/up icon drawable; does not set other icons
-     */
-    public void setBackIconColor(@ColorInt int color) {
-        ImageViewCompat.setImageTintList(backButton, ColorStateList.valueOf(color));
+        backButton.setIconTint(ColorStateList.valueOf(color));
+        clearButton.setIconTint(ColorStateList.valueOf(color));
+        voiceButton.setIconTint(ColorStateList.valueOf(color));
     }
 
     /**
      * Sets the back/up icon drawable
      */
     public void setBackIconDrawable(Drawable drawable) {
-        backButton.setImageDrawable(drawable);
+        backButton.setIcon(drawable);
     }
 
     /**
      * Sets a custom Drawable for the voice search button
      */
     public void setVoiceIconDrawable(Drawable drawable) {
-        voiceButton.setImageDrawable(drawable);
+        voiceButton.setIcon(drawable);
     }
 
     /**
      * Sets a custom Drawable for the clear text button
      */
     public void setClearIconDrawable(Drawable drawable) {
-        clearButton.setImageDrawable(drawable);
+        clearButton.setIcon(drawable);
     }
 
     public void setSearchBackground(Drawable background) {
@@ -752,17 +805,22 @@ public class SimpleSearchView extends FrameLayout {
             showSearch();
             return true;
         });
+        updateToolbarStyle();
+    }
+
+    private void updateToolbarStyle() {
+        Menu menu = toolbar.getMenu();
+        for (int i = 0; i < menu.size(); i++) {
+            MenuItem item = menu.getItem(i);
+            if (item.getIcon() != null) {
+                DrawableCompat.setTintList(item.getIcon(), ColorStateList.valueOf(defTextColor));
+            }
+        }
+        toolbar.invalidate();
     }
 
     public boolean isSearchOpen() {
         return isSearchOpen;
-    }
-
-    /**
-     * @return current reveal or fade animations duration
-     */
-    public int getAnimationDuration() {
-        return animationDuration;
     }
 
     /**

@@ -3,14 +3,20 @@ package com.ferfalk.simplesearchviewexample;
 import android.content.Intent;
 import android.graphics.Point;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.design.widget.TabLayout;
-import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentManager;
-import android.support.v4.app.FragmentPagerAdapter;
-import android.support.v4.view.ViewPager;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
+
+import androidx.annotation.NonNull;
+
+import com.ferfalk.simplesearchview.SimpleOnTabSelectedListener;
+import com.ferfalk.simplesearchview.utils.DimensUtils;
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.tabs.TabLayout;
+
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentPagerAdapter;
+import androidx.viewpager.widget.ViewPager;
+import androidx.appcompat.app.AppCompatActivity;
+
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -20,11 +26,11 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import com.ferfalk.simplesearchview.SimpleSearchView;
-import com.ferfalk.simplesearchview.utils.DimensUtils;
 
 public class MainActivity extends AppCompatActivity {
     public static final int EXTRA_REVEAL_CENTER_PADDING = 40;
     private SimpleSearchView searchView;
+    private MaterialToolbar toolbar;
     private TabLayout tabLayout;
 
     @Override
@@ -32,7 +38,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Toolbar toolbar = findViewById(R.id.toolbar);
+        toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
         searchView = findViewById(R.id.searchView);
@@ -110,7 +116,7 @@ public class MainActivity extends AppCompatActivity {
     public class SectionsPagerAdapter extends FragmentPagerAdapter {
 
         SectionsPagerAdapter(FragmentManager fm) {
-            super(fm);
+            super(fm, BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT);
         }
 
         @Override
