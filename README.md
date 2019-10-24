@@ -1,3 +1,11 @@
+# SimpleSearchView with DayNight support
+
+```gradle
+dependencies {
+      implementation 'com.github.abramovdv:SimpleSearchView:*last version*'
+}
+````    
+
 # SimpleSearchView
 [![API](https://img.shields.io/badge/API-16%2B-brightgreen.svg?style=flat)](https://android-arsenal.com/api?level=16)
 [![Release](https://img.shields.io/github/release/Ferfalk/SimpleSearchView/all.svg?style=flat)](https://jitpack.io/#Ferfalk/SimpleSearchView)
