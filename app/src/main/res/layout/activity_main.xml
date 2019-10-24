@@ -9,6 +9,7 @@
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appbar"
+        style="@style/Widget.MaterialComponents.Toolbar.Surface"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:layout_constraintTop_toTopOf="parent"
@@ -35,7 +36,7 @@
                 android:layout_height="match_parent"
                 android:hint="@string/custom_hint"
                 app:parentToolbar="@id/toolbar"
-                app:type="material_primary"
+                app:type="material_surface"
                 app:voiceSearch="true"
                 app:iconsAlpha="0.6"
                 tools:visibility="visible" />

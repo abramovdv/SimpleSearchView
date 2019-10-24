@@ -1,15 +1,14 @@
 package com.ferfalk.simplesearchviewexample;
 
 import android.content.Intent;
-import android.graphics.Point;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 
-import com.ferfalk.simplesearchview.utils.DimensUtils;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.tabs.TabLayout;
 
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentPagerAdapter;
@@ -27,9 +26,8 @@ import android.widget.TextView;
 import com.ferfalk.simplesearchview.SimpleSearchView;
 
 public class MainActivity extends AppCompatActivity {
-    public static final int EXTRA_REVEAL_CENTER_PADDING = 40;
+
     private SimpleSearchView searchView;
-    private MaterialToolbar toolbar;
     private TabLayout tabLayout;
 
     @Override
@@ -37,7 +35,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        toolbar = findViewById(R.id.toolbar);
+        MaterialToolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
         searchView = findViewById(R.id.searchView);
@@ -55,19 +53,23 @@ public class MainActivity extends AppCompatActivity {
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.main_menu, menu);
-
         setupSearchView(menu);
         return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.day_night) {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
+            return true;
+        } else
+            return false;
     }
 
     private void setupSearchView(Menu menu) {
         MenuItem item = menu.findItem(R.id.action_search);
         searchView.setMenuItem(item);
         searchView.setTabLayout(tabLayout);
-
-        // Adding padding to the animation because of the hidden menu item
-        Point revealCenter = searchView.getRevealAnimationCenter();
-        revealCenter.x -= DimensUtils.convertDpToPx(EXTRA_REVEAL_CENTER_PADDING, this);
     }
 
     @Override
@@ -95,7 +97,7 @@ public class MainActivity extends AppCompatActivity {
             // Empty
         }
 
-        public static PlaceholderFragment newInstance(int sectionNumber) {
+        static PlaceholderFragment newInstance(int sectionNumber) {
             PlaceholderFragment fragment = new PlaceholderFragment();
             Bundle args = new Bundle();
             args.putInt(ARG_SECTION_NUMBER, sectionNumber);
@@ -118,6 +120,7 @@ public class MainActivity extends AppCompatActivity {
             super(fm, BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT);
         }
 
+        @NonNull
         @Override
         public Fragment getItem(int position) {
             return PlaceholderFragment.newInstance(position + 1);

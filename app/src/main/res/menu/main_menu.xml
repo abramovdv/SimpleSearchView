@@ -9,6 +9,7 @@
         app:showAsAction="ifRoom" />
 
     <item
-        android:title="@string/example"
+        android:id="@+id/day_night"
+        android:title="DayNight"
         app:showAsAction="never" />
 </menu>

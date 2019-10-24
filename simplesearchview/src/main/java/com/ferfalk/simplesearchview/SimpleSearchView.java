@@ -1,7 +1,8 @@
 package com.ferfalk.simplesearchview;
 
 import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -10,7 +11,6 @@ import android.content.pm.ResolveInfo;
 import android.content.res.ColorStateList;
 import android.content.res.TypedArray;
 import android.graphics.Color;
-import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
@@ -38,6 +38,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -45,7 +46,6 @@ import android.widget.FrameLayout;
 import com.ferfalk.simplesearchview.utils.ContextUtils;
 import com.ferfalk.simplesearchview.utils.DimensUtils;
 import com.ferfalk.simplesearchview.utils.EditTextReflectionUtils;
-import com.ferfalk.simplesearchview.utils.SimpleAnimationListener;
 import com.ferfalk.simplesearchview.utils.SimpleAnimationUtils;
 
 import java.lang.annotation.Retention;
@@ -59,12 +59,11 @@ import static android.app.Activity.RESULT_OK;
  * @author Fernando A. H. Falkiewicz
  */
 public class SimpleSearchView extends FrameLayout {
+
     public static final int REQUEST_VOICE_SEARCH = 735;
     public static final int CARD_CORNER_RADIUS = 4;
-    public static final int ANIMATION_CENTER_PADDING = 26;
     private static final int CARD_PADDING = 6;
     private static final int CARD_ELEVATION = 2;
-    private static final float BACK_ICON_ALPHA_DEFAULT = 0.87f;
     private static final float ICONS_ALPHA_DEFAULT = 0.54f;
 
     public static final int STYLE_BAR = 0;
@@ -72,8 +71,12 @@ public class SimpleSearchView extends FrameLayout {
     public static final int MATERIAL_SURFACE = 2;
     public static final int MATERIAL_PRIMARY = 3;
 
+    private static final float EMPTY_ALPHA = 0f;
+    private static final float FULL_ALPHA = 1f;
+
     private MaterialToolbar toolbar;
     private int toolbarId;
+    private AnimatorSet animatorSet;
 
     @IntDef({STYLE_BAR, STYLE_CARD, MATERIAL_SURFACE, MATERIAL_PRIMARY})
     @Retention(RetentionPolicy.SOURCE)
@@ -82,7 +85,7 @@ public class SimpleSearchView extends FrameLayout {
 
     private Context context;
     private int animationDuration = SimpleAnimationUtils.ANIMATION_DURATION_DEFAULT;
-    private Point revealAnimationCenter;
+
     private CharSequence query;
     private CharSequence oldQuery;
     private boolean allowVoiceSearch = false;
@@ -411,55 +414,15 @@ public class SimpleSearchView extends FrameLayout {
         searchEditText.setText(keepQuery ? query : null);
         searchEditText.requestFocus();
 
-        if (animate) {
-            SimpleAnimationUtils.AnimationListener animationListener = new SimpleAnimationListener() {
-                @Override
-                public boolean onAnimationEnd(@NonNull View view) {
-                    if (searchViewListener != null) {
-                        searchViewListener.onSearchViewShownAnimation();
-                    }
-                    return false;
-                }
-            };
-            SimpleAnimationUtils.revealOrFadeIn(this, animationDuration, animationListener, getRevealAnimationCenter()).start();
-        } else {
+        animateTransition(FULL_ALPHA, EMPTY_ALPHA, () -> {
+            toolbar.setVisibility(View.GONE);
             setVisibility(View.VISIBLE);
-        }
-
-        hideTabLayout(animate);
-
+            hideTabLayout(animate);
+        });
+        animatorSet.start();
         isSearchOpen = true;
         if (searchViewListener != null) {
             searchViewListener.onSearchViewShown();
-        }
-    }
-
-    @Override
-    public void setVisibility(int visibility) {
-        super.setVisibility(visibility);
-        if (toolbar != null) {
-            int duration = SimpleAnimationUtils.ANIMATION_DURATION_DEFAULT / 2;
-            if (visibility == View.VISIBLE) {
-                toolbar.animate().alpha(0f)
-                        .setDuration(duration)
-                        .setListener(new AnimatorListenerAdapter() {
-                            @Override
-                            public void onAnimationEnd(Animator animation) {
-                                super.onAnimationEnd(animation);
-                                toolbar.setVisibility(View.GONE);
-                            }
-                        }).start();
-            } else {
-                toolbar.animate().alpha(1f)
-                        .setDuration(duration)
-                        .setListener(new AnimatorListenerAdapter() {
-                            @Override
-                            public void onAnimationStart(Animator animation) {
-                                super.onAnimationStart(animation);
-                                toolbar.setVisibility(View.VISIBLE);
-                            }
-                        }).start();
-            }
         }
     }
 
@@ -485,27 +448,48 @@ public class SimpleSearchView extends FrameLayout {
         searchIsClosing = false;
         clearFocus();
 
-        if (animate) {
-            SimpleAnimationUtils.AnimationListener animationListener = new SimpleAnimationListener() {
-                @Override
-                public boolean onAnimationEnd(@NonNull View view) {
-                    if (searchViewListener != null) {
-                        searchViewListener.onSearchViewClosedAnimation();
-                    }
-                    return false;
-                }
-            };
-            SimpleAnimationUtils.hideOrFadeOut(this, animationDuration, animationListener, getRevealAnimationCenter()).start();
-        } else {
-            setVisibility(View.INVISIBLE);
-        }
-
-        showTabLayout(animate);
+        animateTransition(EMPTY_ALPHA, FULL_ALPHA, () -> {
+            toolbar.setVisibility(View.VISIBLE);
+            setVisibility(View.GONE);
+            showTabLayout(animate);
+        });
+        animatorSet.start();
 
         isSearchOpen = false;
         if (searchViewListener != null) {
             searchViewListener.onSearchViewClosed();
         }
+    }
+
+    private void animateTransition(float emptyAlpha, float fullAlpha, onAnimationEnd callback) {
+        Animator alphaToolbar =
+                ObjectAnimator.ofFloat(toolbar, "alpha", emptyAlpha, fullAlpha);
+        Animator alphaSearchView =
+                ObjectAnimator.ofFloat(this, "alpha", fullAlpha, emptyAlpha);
+        animatorSet = new AnimatorSet();
+        animatorSet.setInterpolator(new AccelerateDecelerateInterpolator());
+        animatorSet.setDuration(100);
+        animatorSet.playTogether(alphaToolbar, alphaSearchView);
+        animatorSet.addListener(new Animator.AnimatorListener() {
+            @Override
+            public void onAnimationStart(Animator animation) {
+                toolbar.setVisibility(View.VISIBLE);
+                setVisibility(View.VISIBLE);
+            }
+
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                callback.method();
+            }
+
+            @Override
+            public void onAnimationCancel(Animator animation) {
+            }
+
+            @Override
+            public void onAnimationRepeat(Animator animation) {
+            }
+        });
     }
 
     /**
@@ -830,27 +814,6 @@ public class SimpleSearchView extends FrameLayout {
         animationDuration = duration;
     }
 
-    /**
-     * @return center of the reveal animation, by default it is placed where the rightmost MenuItem would be
-     */
-    public Point getRevealAnimationCenter() {
-        if (revealAnimationCenter != null) {
-            return revealAnimationCenter;
-        }
-
-        int centerX = getWidth() - DimensUtils.convertDpToPx(ANIMATION_CENTER_PADDING, context);
-        int centerY = getHeight() / 2;
-
-        revealAnimationCenter = new Point(centerX, centerY);
-        return revealAnimationCenter;
-    }
-
-    /**
-     * @param revealAnimationCenter center of the reveal animation, used to customize the origin of the animation
-     */
-    public void setRevealAnimationCenter(Point revealAnimationCenter) {
-        this.revealAnimationCenter = revealAnimationCenter;
-    }
 
     /**
      * @param listener listens to query changes
@@ -960,5 +923,10 @@ public class SimpleSearchView extends FrameLayout {
          * Called at the end of the close animation
          */
         void onSearchViewClosedAnimation();
+    }
+
+    @FunctionalInterface
+    public interface onAnimationEnd {
+        void method();
     }
 }
