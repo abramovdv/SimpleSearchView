@@ -6,7 +6,6 @@ import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 
-import com.ferfalk.simplesearchview.SimpleOnTabSelectedListener;
 import com.ferfalk.simplesearchview.utils.DimensUtils;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.tabs.TabLayout;
