@@ -415,7 +415,7 @@ public class SimpleSearchView extends FrameLayout {
         searchEditText.requestFocus();
 
         animateTransition(FULL_ALPHA, EMPTY_ALPHA, () -> {
-            toolbar.setVisibility(View.GONE);
+            setToolbarVisibility(View.GONE);
             setVisibility(View.VISIBLE);
             hideTabLayout(animate);
         });
@@ -449,7 +449,7 @@ public class SimpleSearchView extends FrameLayout {
         clearFocus();
 
         animateTransition(EMPTY_ALPHA, FULL_ALPHA, () -> {
-            toolbar.setVisibility(View.VISIBLE);
+            setToolbarVisibility(View.VISIBLE);
             setVisibility(View.GONE);
             showTabLayout(animate);
         });
@@ -473,7 +473,7 @@ public class SimpleSearchView extends FrameLayout {
         animatorSet.addListener(new Animator.AnimatorListener() {
             @Override
             public void onAnimationStart(Animator animation) {
-                toolbar.setVisibility(View.VISIBLE);
+                setToolbarVisibility(View.VISIBLE);
                 setVisibility(View.VISIBLE);
             }
 
@@ -490,6 +490,12 @@ public class SimpleSearchView extends FrameLayout {
             public void onAnimationRepeat(Animator animation) {
             }
         });
+    }
+
+    private void setToolbarVisibility(int visibility) {
+        if (toolbar != null) {
+            toolbar.setVisibility(visibility);
+        }
     }
 
     /**
@@ -793,14 +799,16 @@ public class SimpleSearchView extends FrameLayout {
     }
 
     private void updateToolbarStyle() {
-        Menu menu = toolbar.getMenu();
-        for (int i = 0; i < menu.size(); i++) {
-            MenuItem item = menu.getItem(i);
-            if (item.getIcon() != null) {
-                DrawableCompat.setTintList(item.getIcon(), ColorStateList.valueOf(defTextColor));
+        if (toolbar != null) {
+            Menu menu = toolbar.getMenu();
+            for (int i = 0; i < menu.size(); i++) {
+                MenuItem item = menu.getItem(i);
+                if (item.getIcon() != null) {
+                    DrawableCompat.setTintList(item.getIcon(), ColorStateList.valueOf(defTextColor));
+                }
             }
+            toolbar.invalidate();
         }
-        toolbar.invalidate();
     }
 
     public boolean isSearchOpen() {
