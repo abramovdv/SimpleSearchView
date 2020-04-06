@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <declare-styleable name="SimpleSearchView">
-        <attr name="iconsAlpha" />
+        <attr name="backIconAlpha" format="float" />
+        <attr name="iconsAlpha" format="float" />
+
         <attr name="iconsTint" format="color" />
 
         <attr name="cursorColor" format="color" />
