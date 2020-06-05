@@ -1,4 +1,5 @@
 # SimpleSearchView with DayNight support
+[![](https://jitpack.io/v/yewrepo/SimpleSearchView.svg)](https://jitpack.io/#yewrepo/SimpleSearchView)
 
 ```gradle
 dependencies {
