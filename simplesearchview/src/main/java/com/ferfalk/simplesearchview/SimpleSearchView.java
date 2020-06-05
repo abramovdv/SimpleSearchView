@@ -414,12 +414,16 @@ public class SimpleSearchView extends FrameLayout {
         searchEditText.setText(keepQuery ? query : null);
         searchEditText.requestFocus();
 
-        animateTransition(FULL_ALPHA, EMPTY_ALPHA, () -> {
+        animatorSet = getAnimationSetLazy(FULL_ALPHA, EMPTY_ALPHA, () -> {
             setToolbarVisibility(View.GONE);
             setVisibility(View.VISIBLE);
             hideTabLayout(animate);
         });
-        animatorSet.start();
+
+        if (animatorSet != null) {
+            animatorSet.start();
+        }
+
         isSearchOpen = true;
         if (searchViewListener != null) {
             searchViewListener.onSearchViewShown();
@@ -448,12 +452,15 @@ public class SimpleSearchView extends FrameLayout {
         searchIsClosing = false;
         clearFocus();
 
-        animateTransition(EMPTY_ALPHA, FULL_ALPHA, () -> {
+        animatorSet = getAnimationSetLazy(EMPTY_ALPHA, FULL_ALPHA, () -> {
             setToolbarVisibility(View.VISIBLE);
             setVisibility(View.GONE);
             showTabLayout(animate);
         });
-        animatorSet.start();
+
+        if (animatorSet != null) {
+            animatorSet.start();
+        }
 
         isSearchOpen = false;
         if (searchViewListener != null) {
@@ -461,35 +468,40 @@ public class SimpleSearchView extends FrameLayout {
         }
     }
 
-    private void animateTransition(float emptyAlpha, float fullAlpha, onAnimationEnd callback) {
-        Animator alphaToolbar =
-                ObjectAnimator.ofFloat(toolbar, "alpha", emptyAlpha, fullAlpha);
-        Animator alphaSearchView =
-                ObjectAnimator.ofFloat(this, "alpha", fullAlpha, emptyAlpha);
-        animatorSet = new AnimatorSet();
-        animatorSet.setInterpolator(new AccelerateDecelerateInterpolator());
-        animatorSet.setDuration(100);
-        animatorSet.playTogether(alphaToolbar, alphaSearchView);
-        animatorSet.addListener(new Animator.AnimatorListener() {
-            @Override
-            public void onAnimationStart(Animator animation) {
-                setToolbarVisibility(View.VISIBLE);
-                setVisibility(View.VISIBLE);
-            }
+    private AnimatorSet getAnimationSetLazy(float emptyAlpha, float fullAlpha, onAnimationEnd callback) {
+        if (toolbar != null) {
+            Animator alphaToolbar =
+                    ObjectAnimator.ofFloat(toolbar, "alpha", emptyAlpha, fullAlpha);
+            Animator alphaSearchView =
+                    ObjectAnimator.ofFloat(this, "alpha", fullAlpha, emptyAlpha);
+            animatorSet = new AnimatorSet();
+            animatorSet.setInterpolator(new AccelerateDecelerateInterpolator());
+            animatorSet.setDuration(100);
+            animatorSet.playTogether(alphaToolbar, alphaSearchView);
+            animatorSet.addListener(new Animator.AnimatorListener() {
+                @Override
+                public void onAnimationStart(Animator animation) {
+                    setToolbarVisibility(View.VISIBLE);
+                    setVisibility(View.VISIBLE);
+                }
 
-            @Override
-            public void onAnimationEnd(Animator animation) {
-                callback.method();
-            }
+                @Override
+                public void onAnimationEnd(Animator animation) {
+                    if (callback != null) {
+                        callback.method();
+                    }
+                }
 
-            @Override
-            public void onAnimationCancel(Animator animation) {
-            }
+                @Override
+                public void onAnimationCancel(Animator animation) {
+                }
 
-            @Override
-            public void onAnimationRepeat(Animator animation) {
-            }
-        });
+                @Override
+                public void onAnimationRepeat(Animator animation) {
+                }
+            });
+        }
+        return animatorSet;
     }
 
     private void setToolbarVisibility(int visibility) {
